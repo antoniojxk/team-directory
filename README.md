@@ -232,6 +232,7 @@ Tests require a dedicated PostgreSQL database with a name ending in `_test`. The
 docker compose --profile test up -d test-db --wait
 export TEST_DATABASE_URL='postgresql+psycopg://team:test-only-password@127.0.0.1:15433/team_directory_test'
 
+backend/.venv/bin/mypy --config-file backend/pyproject.toml
 backend/.venv/bin/ruff check backend scripts
 backend/.venv/bin/ruff format --check backend scripts
 npm run format:check --prefix frontend
@@ -247,7 +248,9 @@ Alembic creates the test schema; no SQLite substitute or `create_all` is used. B
 
 The browser suite starts its own backend on 8001 and Vite on 5174, resets/seeds the test database, and closes both servers afterward. It uses fixed **test-only** passwords, never the development `.env` credentials. Traces are disabled to avoid storing bearer tokens. Failure screenshots contain synthetic data only.
 
-GitHub Actions repeats lint/format checks, builds React, migrates/tests PostgreSQL, runs Chromium smoke tests, and builds the Docker image. [Local verification details](docs/VERIFICATION.md) record actual results and any environment limitations; configuring a workflow is not the same as observing a hosted CI run.
+Mypy runs in strict mode across the backend application, tests, migrations, and Python scripts. The configuration includes the Pydantic plugin and requires parameter and return annotations for every function. Run the command above from the repository root, or `uv run mypy` from `backend/`. Type checking does not require a running database.
+
+GitHub Actions repeats type/lint/format checks, builds React, migrates/tests PostgreSQL, runs Chromium smoke tests, and builds the Docker image. [Local verification details](docs/VERIFICATION.md) record actual results and any environment limitations; configuring a workflow is not the same as observing a hosted CI run.
 
 ## A three-minute demonstration
 

@@ -1,3 +1,4 @@
+import pytest
 from sqlalchemy import func, select
 
 from app.config import get_settings
@@ -6,15 +7,20 @@ from app.models import Classification, ComplianceRecord, Employment, Person, Use
 from app.seed import seed
 
 
-def test_seed_is_repeatable_and_preserves_existing_edits_and_passwords(monkeypatch):
+def test_seed_is_repeatable_and_preserves_existing_edits_and_passwords(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     settings = get_settings()
     monkeypatch.setattr(settings, "demo_viewer_password", "replacement-viewer-password")
     monkeypatch.setattr(settings, "demo_hr_password", "replacement-hr-password")
     with SessionLocal() as db:
-        original_hash = db.get(User, 1).password_hash
+        user = db.get(User, 1)
+        assert user is not None
+        original_hash = user.password_hash
     seed()
     with SessionLocal.begin() as db:
         person = db.scalar(select(Person).where(Person.work_email == "avery.chen@example.com"))
+        assert person is not None
         person.private_notes = "Preserve this synthetic edit"
         counts = [
             db.scalar(select(func.count()).select_from(model))
@@ -26,10 +32,9 @@ def test_seed_is_repeatable_and_preserves_existing_edits_and_passwords(monkeypat
             db.scalar(select(func.count()).select_from(model))
             for model in [Person, Employment, ComplianceRecord, Classification, User]
         ]
-        assert db.get(User, 1).password_hash == original_hash
-        assert (
-            db.scalar(
-                select(Person).where(Person.work_email == "avery.chen@example.com")
-            ).private_notes
-            == "Preserve this synthetic edit"
-        )
+        user = db.get(User, 1)
+        assert user is not None
+        assert user.password_hash == original_hash
+        person = db.scalar(select(Person).where(Person.work_email == "avery.chen@example.com"))
+        assert person is not None
+        assert person.private_notes == "Preserve this synthetic edit"

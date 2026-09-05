@@ -3,6 +3,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.responses import Response
 
 from app.api import router
 from app.config import get_settings
@@ -17,7 +19,7 @@ app.include_router(router)
 
 
 @app.middleware("http")
-async def security_headers(request: Request, call_next):
+async def security_headers(request: Request, call_next: RequestResponseEndpoint) -> Response:
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "same-origin"
@@ -34,7 +36,7 @@ async def security_headers(request: Request, call_next):
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_error(request: Request, exc: RequestValidationError):
+async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
     # FastAPI's default includes submitted input and can echo private notes/passwords.
     errors = [
         {"field": ".".join(map(str, err["loc"])), "type": err["type"]} for err in exc.errors()
@@ -49,7 +51,7 @@ async def validation_error(request: Request, exc: RequestValidationError):
 
 
 @app.exception_handler(IntegrityError)
-async def conflict(request: Request, exc: IntegrityError):
+async def conflict(request: Request, exc: IntegrityError) -> JSONResponse:
     return JSONResponse(
         status_code=409,
         content={
@@ -60,7 +62,7 @@ async def conflict(request: Request, exc: IntegrityError):
 
 
 @app.exception_handler(SQLAlchemyError)
-async def database_error(request: Request, exc: SQLAlchemyError):
+async def database_error(request: Request, exc: SQLAlchemyError) -> JSONResponse:
     # Do not log SQL exception text: driver errors can contain confidential parameters.
     return JSONResponse(
         status_code=503,
@@ -69,12 +71,12 @@ async def database_error(request: Request, exc: SQLAlchemyError):
 
 
 @app.exception_handler(Exception)
-async def unexpected_error(request: Request, exc: Exception):
+async def unexpected_error(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=500, content={"detail": "An unexpected server error occurred."})
 
 
 @app.get("/health", tags=["Operations"])
-def health():
+def health() -> dict[str, str]:
     """Process liveness only: does not wake the database or run migrations."""
     return {"status": "ok"}
 
@@ -85,7 +87,7 @@ if (static_dir / "assets").is_dir():
 
 
 @app.get("/{path:path}", include_in_schema=False)
-def frontend(path: str):
+def frontend(path: str) -> FileResponse:
     # Allow only known frontend routes. API typos and missing assets stay JSON 404s.
     parts = path.strip("/").split("/")
     is_profile = len(parts) == 2 and parts[0] == "people" and parts[1].isdigit()

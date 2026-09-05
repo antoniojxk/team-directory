@@ -32,7 +32,7 @@ PEOPLE = [
 ]
 
 
-def seed():
+def seed() -> None:
     settings = get_settings()
     with SessionLocal.begin() as db:
         for role, password in [

@@ -1,4 +1,5 @@
 import os
+from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
 
@@ -28,7 +29,7 @@ from app.security import create_token, password_hash  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)
-def migrated_database():
+def migrated_database() -> Iterator[None]:
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     command.upgrade(config, "head")
     yield
@@ -36,12 +37,12 @@ def migrated_database():
 
 
 @pytest.fixture(scope="session")
-def hashes():
+def hashes() -> tuple[str, str]:
     return password_hash.hash("viewer-test-password"), password_hash.hash("hr-test-password")
 
 
 @pytest.fixture(autouse=True)
-def records(migrated_database, hashes):
+def records(migrated_database: None, hashes: tuple[str, str]) -> None:
     with engine.begin() as connection:
         connection.execute(
             text(
@@ -113,15 +114,17 @@ def records(migrated_database, hashes):
 
 
 @pytest.fixture
-def client():
+def client() -> Iterator[TestClient]:
     with TestClient(app, raise_server_exceptions=False) as client:
         yield client
 
 
 @pytest.fixture
-def headers():
+def headers() -> dict[str, dict[str, str]]:
     with SessionLocal() as db:
-        return {
-            role: {"Authorization": f"Bearer {create_token(db.get(User, i))}"}
-            for i, role in [(1, "viewer"), (2, "hr")]
-        }
+        result = {}
+        for i, role in [(1, "viewer"), (2, "hr")]:
+            user = db.get(User, i)
+            assert user is not None
+            result[role] = {"Authorization": f"Bearer {create_token(user)}"}
+        return result

@@ -1,4 +1,5 @@
 import pytest
+from fastapi.testclient import TestClient
 
 PERSON = {"name": "Taylor Fox", "work_email": "TAYLOR@example.com", "department": "Engineering"}
 EMPLOYMENT = {
@@ -11,7 +12,9 @@ EMPLOYMENT = {
 TRAINING = {"requirement": "Workplace safety", "status": "pending"}
 
 
-def test_directory_search_filters_and_pagination(client, headers):
+def test_directory_search_filters_and_pagination(
+    client: TestClient, headers: dict[str, dict[str, str]]
+) -> None:
     h = headers["viewer"]
     response = client.get("/api/people?q=AVERY", headers=h)
     assert response.status_code == 200
@@ -36,7 +39,9 @@ def test_directory_search_filters_and_pagination(client, headers):
     assert client.get("/api/departments", headers=h).json() == ["Design", "Engineering"]
 
 
-def test_create_update_profile_and_related_crud(client, headers):
+def test_create_update_profile_and_related_crud(
+    client: TestClient, headers: dict[str, dict[str, str]]
+) -> None:
     h = headers["hr"]
     person = client.post("/api/people", headers=h, json={**PERSON, "private_notes": "secret"})
     assert person.status_code == 201
@@ -76,7 +81,9 @@ def test_create_update_profile_and_related_crud(client, headers):
     assert client.get(base, headers=h).json()["employments"] == []
 
 
-def test_classification_crud_and_restrict_linked_delete(client, headers):
+def test_classification_crud_and_restrict_linked_delete(
+    client: TestClient, headers: dict[str, dict[str, str]]
+) -> None:
     h = headers["hr"]
     response = client.post("/api/classifications", headers=h, json={"name": " INTERN "})
     assert response.status_code == 201 and response.json()["name"] == "intern"
@@ -107,7 +114,13 @@ def test_classification_crud_and_restrict_linked_delete(client, headers):
         ("patch", "/api/people/1/employments/1/salary", {"salary": "1"}),
     ],
 )
-def test_viewer_cannot_mutate_directly(client, headers, method, path, body):
+def test_viewer_cannot_mutate_directly(
+    client: TestClient,
+    headers: dict[str, dict[str, str]],
+    method: str,
+    path: str,
+    body: dict[str, object] | None,
+) -> None:
     response = client.request(method, path, headers=headers["viewer"], json=body)
     assert response.status_code == 403
 
@@ -123,11 +136,15 @@ def test_viewer_cannot_mutate_directly(client, headers, method, path, body):
         "/api/people/999999999999999",
     ],
 )
-def test_invalid_parameters(client, headers, path):
+def test_invalid_parameters(
+    client: TestClient, headers: dict[str, dict[str, str]], path: str
+) -> None:
     assert client.get(path, headers=headers["hr"]).status_code == 422
 
 
-def test_missing_malformed_duplicate_and_mismatched_records(client, headers):
+def test_missing_malformed_duplicate_and_mismatched_records(
+    client: TestClient, headers: dict[str, dict[str, str]]
+) -> None:
     h = headers["hr"]
     assert client.get("/api/people/999", headers=h).status_code == 404
     assert client.put("/api/people/999", headers=h, json=PERSON).status_code == 404
@@ -178,7 +195,9 @@ def test_missing_malformed_duplicate_and_mismatched_records(client, headers):
         {**EMPLOYMENT, "salary": "100", "end_date": "2020-01-01"},
     ],
 )
-def test_employment_validation(client, headers, data):
+def test_employment_validation(
+    client: TestClient, headers: dict[str, dict[str, str]], data: dict[str, object]
+) -> None:
     assert (
         client.post("/api/people/1/employments", headers=headers["hr"], json=data).status_code
         == 422
@@ -199,13 +218,15 @@ def test_employment_validation(client, headers, data):
         },
     ],
 )
-def test_compliance_validation(client, headers, data):
+def test_compliance_validation(
+    client: TestClient, headers: dict[str, dict[str, str]], data: dict[str, object]
+) -> None:
     assert (
         client.post("/api/people/1/compliance", headers=headers["hr"], json=data).status_code == 422
     )
 
 
-def test_health_openapi_and_unknown_routes(client):
+def test_health_openapi_and_unknown_routes(client: TestClient) -> None:
     assert client.get("/health").json() == {"status": "ok"}
     assert client.get("/docs").status_code == 200
     spec = client.get("/openapi.json").json()

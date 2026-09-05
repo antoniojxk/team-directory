@@ -26,13 +26,13 @@ from app.database import engine
         "VALUES (1, 'Security training', 'pending')",
     ],
 )
-def test_database_enforces_constraints_independently_of_api(statement):
+def test_database_enforces_constraints_independently_of_api(statement: str) -> None:
     with engine.connect() as connection:
         with pytest.raises(IntegrityError):
             connection.execute(text(statement))
         connection.rollback()
 
 
-def test_migration_is_current():
+def test_migration_is_current() -> None:
     with engine.connect() as connection:
         assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()

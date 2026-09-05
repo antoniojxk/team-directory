@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
@@ -62,7 +62,7 @@ class EmploymentWrite(Input):
     classification_id: int = Field(gt=0, le=2147483647)
 
     @model_validator(mode="after")
-    def dates(self):
+    def dates(self) -> Self:
         if self.end_date and self.end_date < self.start_date:
             raise ValueError("End date must be on or after start date")
         return self
@@ -89,7 +89,7 @@ class ComplianceWrite(Input):
     expiry_date: date | None = None
 
     @model_validator(mode="after")
-    def dates(self):
+    def dates(self) -> Self:
         if self.status == "completed" and not self.completion_date:
             raise ValueError("Completed training requires a completion date")
         if self.status == "pending" and (self.completion_date or self.expiry_date):

@@ -2,6 +2,7 @@ from datetime import timedelta
 
 import jwt
 import pytest
+from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.database import SessionLocal
@@ -9,7 +10,7 @@ from app.models import User
 from app.security import create_token
 
 
-def test_login_and_current_user(client):
+def test_login_and_current_user(client: TestClient) -> None:
     response = client.post(
         "/api/auth/token", data={"username": "viewer", "password": "viewer-test-password"}
     )
@@ -32,25 +33,29 @@ def test_login_and_current_user(client):
     "username,password",
     [("viewer", "wrong"), ("missing", "viewer-test-password"), ("hr", "x" * 1025)],
 )
-def test_invalid_credentials(client, username, password):
+def test_invalid_credentials(client: TestClient, username: str, password: str) -> None:
     response = client.post("/api/auth/token", data={"username": username, "password": password})
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid username or password."
 
 
-def test_missing_malformed_and_expired_tokens(client):
+def test_missing_malformed_and_expired_tokens(client: TestClient) -> None:
     assert client.get("/api/people").status_code == 401
     assert (
         client.get("/api/people", headers={"Authorization": "Bearer nonsense"}).status_code == 401
     )
     with SessionLocal() as db:
-        token = create_token(db.get(User, 2), lifetime=timedelta(seconds=-1))
+        user = db.get(User, 2)
+        assert user is not None
+        token = create_token(user, lifetime=timedelta(seconds=-1))
     response = client.get("/api/people", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 401
     assert "expired" in response.json()["detail"]
 
 
-def test_roles_are_loaded_from_database(client, headers):
+def test_roles_are_loaded_from_database(
+    client: TestClient, headers: dict[str, dict[str, str]]
+) -> None:
     token = headers["viewer"]["Authorization"].split()[1]
     # Even a validly signed token containing an extra HR role cannot grant access.
     claims = jwt.decode(
@@ -60,11 +65,15 @@ def test_roles_are_loaded_from_database(client, headers):
     token = jwt.encode(claims, get_settings().jwt_secret, algorithm="HS256")
     assert client.get("/api/audit", headers={"Authorization": f"Bearer {token}"}).status_code == 403
     with SessionLocal.begin() as db:
-        db.get(User, 2).role = "viewer"
+        user = db.get(User, 2)
+        assert user is not None
+        user.role = "viewer"
     assert client.get("/api/audit", headers=headers["hr"]).status_code == 403
 
 
-def test_invalid_signature_missing_exp_and_deleted_user(client, headers):
+def test_invalid_signature_missing_exp_and_deleted_user(
+    client: TestClient, headers: dict[str, dict[str, str]]
+) -> None:
     token = headers["viewer"]["Authorization"].split()[1]
     claims = jwt.decode(
         token, get_settings().jwt_secret, algorithms=["HS256"], audience="team-directory-api"
