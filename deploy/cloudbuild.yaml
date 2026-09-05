@@ -1,0 +1,7 @@
+# Run only after authorizing cloud resources. See docs/DEPLOYMENT.md.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '--platform=linux/amd64', '-t', '${_IMAGE}', '.']
+images:
+  - '${_IMAGE}'
+timeout: 1200s
