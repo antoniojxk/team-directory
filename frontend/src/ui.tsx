@@ -68,7 +68,7 @@ export function Pagination({
     <div className="pagination">
       <span>
         {total
-          ? `${(page - 1) * size + 1}–${Math.min(page * size, total)} of ${total}`
+          ? `${(page - 1) * size + 1}-${Math.min(page * size, total)} of ${total}`
           : '0 results'}
       </span>
       <div>

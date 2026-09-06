@@ -130,7 +130,7 @@ function ProfileContent({ id }: { id: string }) {
                         <div>
                           <h3>{e.job_title}</h3>
                           <p className="muted small">
-                            {dateText(e.start_date)} –{' '}
+                            {dateText(e.start_date)} -{' '}
                             {e.end_date ? dateText(e.end_date) : 'Present'}
                           </p>
                         </div>

@@ -46,7 +46,7 @@ def seed() -> None:
         ]:
             if not db.scalar(select(User).where(User.username == role)):
                 if password is None or not 12 <= len(password) <= 1024:
-                    raise ValueError(f"Set DEMO_{role.upper()}_PASSWORD to 12–1024 characters")
+                    raise ValueError(f"Set DEMO_{role.upper()}_PASSWORD to 12-1024 characters")
                 db.add(
                     User(
                         username=role,
