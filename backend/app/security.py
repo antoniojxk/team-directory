@@ -25,6 +25,12 @@ DUMMY_HASH = password_hash.hash("dummy-password-never-used-for-login")
 DB = Annotated[Session, Depends(get_db)]
 
 
+def permissions_for(user: User) -> list[str]:
+    """Combine role grants; unrecognized roles and empty assignments grant nothing."""
+    grants = {scope for role in user.roles for scope in ROLE_PERMISSIONS.get(role.name, [])}
+    return [scope for scope in SCOPES if scope in grants]
+
+
 def create_token(user: User, lifetime: timedelta | None = None) -> str:
     settings = get_settings()
     now = datetime.now(UTC)
@@ -52,7 +58,7 @@ def current_user(
     token: Annotated[str, Depends(oauth2)],
 ) -> User:
     user = authenticate(db, token)
-    permissions = ROLE_PERMISSIONS.get(user.role, [])
+    permissions = permissions_for(user)
     if any(scope not in permissions for scope in security_scopes.scopes):
         raise HTTPException(status_code=403, detail="You do not have permission for this action.")
     return user
@@ -81,5 +87,5 @@ def authenticate(db: Session, token: str) -> User:
     user = db.get(User, user_id)
     if user is None:
         raise error
-    # Always use the current database role, never a client-supplied role or JWT scope.
+    # Always use current database assignments, never client-supplied roles or JWT scopes.
     return user

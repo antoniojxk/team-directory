@@ -3,10 +3,11 @@ from datetime import timedelta
 import jwt
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.config import get_settings
 from app.database import SessionLocal
-from app.models import User
+from app.models import Role, User
 from app.security import create_token
 
 
@@ -22,7 +23,7 @@ def test_login_and_current_user(client: TestClient) -> None:
     assert me.json() == {
         "id": 1,
         "username": "viewer",
-        "role": "viewer",
+        "roles": ["viewer"],
         "permissions": ["directory:read"],
     }
     assert "password" not in me.text
@@ -61,13 +62,15 @@ def test_roles_are_loaded_from_database(
     claims = jwt.decode(
         token, get_settings().jwt_secret, algorithms=["HS256"], audience="team-directory-api"
     )
-    claims.update(role="hr", scope="records:write audit:read confidential:read")
+    claims.update(
+        role="hr", roles=["viewer", "hr"], scope="records:write audit:read confidential:read"
+    )
     token = jwt.encode(claims, get_settings().jwt_secret, algorithm="HS256")
     assert client.get("/api/audit", headers={"Authorization": f"Bearer {token}"}).status_code == 403
     with SessionLocal.begin() as db:
         user = db.get(User, 2)
         assert user is not None
-        user.role = "viewer"
+        user.roles = list(db.scalars(select(Role).where(Role.name == "viewer")))
     assert client.get("/api/audit", headers=headers["hr"]).status_code == 403
 
 

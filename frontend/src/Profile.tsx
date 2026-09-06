@@ -50,7 +50,7 @@ function ProfileContent({ id }: { id: string }) {
   const [editSalary, setEditSalary] = useState<Confidential['employments'][number] | null>(null)
   const revealRequest = useRef<AbortController | null>(null)
   useEffect(() => () => revealRequest.current?.abort(), [])
-  const hr = user?.role === 'hr'
+  const hr = user?.roles.includes('hr')
   function done() {
     setEmployment(null)
     setCompliance(null)

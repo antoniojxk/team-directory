@@ -4,11 +4,13 @@ from decimal import Decimal
 from sqlalchemy import (
     JSON,
     CheckConstraint,
+    Column,
     DateTime,
     ForeignKey,
     Index,
     Numeric,
     String,
+    Table,
     Text,
     UniqueConstraint,
     func,
@@ -94,14 +96,34 @@ class ComplianceRecord(Base):
     expiry_date: Mapped[date | None]
 
 
+user_roles = Table(
+    "user_roles",
+    Base.metadata,
+    Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("role_id", ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True, index=True),
+)
+
+
+class Role(Base):
+    __tablename__ = "roles"
+    __table_args__ = (
+        CheckConstraint("length(trim(name)) > 0", name="role_name_nonempty"),
+        CheckConstraint("name = lower(trim(name))", name="role_name_normalized"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(80), unique=True)
+
+
 class User(Base):
     __tablename__ = "users"
-    __table_args__ = (CheckConstraint("role IN ('viewer', 'hr')", name="user_role"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(80), unique=True)
     password_hash: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(String(20))
+    roles: Mapped[list[Role]] = relationship(
+        secondary=user_roles, lazy="selectin", order_by="Role.name"
+    )
 
 
 class AuditEvent(Base):

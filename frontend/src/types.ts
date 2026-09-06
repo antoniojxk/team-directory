@@ -1,7 +1,7 @@
 export interface User {
   id: number
   username: string
-  role: 'viewer' | 'hr'
+  roles: string[]
   permissions: string[]
 }
 export interface Person {

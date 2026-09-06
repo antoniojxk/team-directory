@@ -1,4 +1,4 @@
-"""Idempotent demo data. Existing people and account passwords are never overwritten."""
+"""Idempotent demo data; preserve existing people, passwords and role assignments."""
 
 from datetime import date
 from decimal import Decimal
@@ -7,8 +7,8 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.database import SessionLocal
-from app.models import Classification, ComplianceRecord, Employment, Person, User
-from app.security import password_hash
+from app.models import Classification, ComplianceRecord, Employment, Person, Role, User
+from app.security import ROLE_PERMISSIONS, password_hash
 
 PEOPLE = [
     ("Avery Chen", "Engineering", "Backend Developer", "employee"),
@@ -35,6 +35,11 @@ PEOPLE = [
 def seed() -> None:
     settings = get_settings()
     with SessionLocal.begin() as db:
+        roles = {role.name: role for role in db.scalars(select(Role))}
+        for name in ROLE_PERMISSIONS:
+            if name not in roles:
+                roles[name] = Role(name=name)
+                db.add(roles[name])
         for role, password in [
             ("viewer", settings.demo_viewer_password),
             ("hr", settings.demo_hr_password),
@@ -42,7 +47,13 @@ def seed() -> None:
             if not db.scalar(select(User).where(User.username == role)):
                 if password is None or not 12 <= len(password) <= 1024:
                     raise ValueError(f"Set DEMO_{role.upper()}_PASSWORD to 12–1024 characters")
-                db.add(User(username=role, role=role, password_hash=password_hash.hash(password)))
+                db.add(
+                    User(
+                        username=role,
+                        roles=[roles[role]],
+                        password_hash=password_hash.hash(password),
+                    )
+                )
         for name in ["employee", "contractor", "intern"]:
             if not db.scalar(select(Classification).where(Classification.name == name)):
                 db.add(Classification(name=name))

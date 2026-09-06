@@ -13,12 +13,12 @@ from app.database import Base
 from app.security import (
     DB,
     DUMMY_HASH,
-    ROLE_PERMISSIONS,
     authenticate,
     create_token,
     current_user,
     oauth2,
     password_hash,
+    permissions_for,
 )
 
 router = APIRouter(prefix="/api")
@@ -75,7 +75,10 @@ def login(db: DB, form: Annotated[OAuth2PasswordRequestForm, Depends()]) -> s.To
 @router.get("/auth/me", response_model=s.UserOut, tags=["Authentication"])
 def me(user: Annotated[m.User, Depends(current_user)]) -> s.UserOut:
     return s.UserOut(
-        id=user.id, username=user.username, role=user.role, permissions=ROLE_PERMISSIONS[user.role]
+        id=user.id,
+        username=user.username,
+        roles=sorted(role.name for role in user.roles),
+        permissions=permissions_for(user),
     )
 
 
@@ -291,7 +294,8 @@ def confidential_reader(
     token: Annotated[str, Depends(oauth2)],
 ) -> m.User:
     user = authenticate(db, token)
-    if any(scope not in ROLE_PERMISSIONS[user.role] for scope in security_scopes.scopes):
+    permissions = permissions_for(user)
+    if any(scope not in permissions for scope in security_scopes.scopes):
         person = db.get(m.Person, person_id)
         log_access(db, user, person_id, person, "denied")
         raise HTTPException(

@@ -20,7 +20,13 @@ from app.database import engine
         "UPDATE compliance_records SET expiry_date = '2026-01-01' WHERE id = 1",
         "UPDATE compliance_records SET status = 'completed', completion_date = '2026-02-01', "
         "expiry_date = '2026-01-01' WHERE id = 1",
-        "UPDATE users SET role = 'admin' WHERE id = 1",
+        "INSERT INTO roles (name) VALUES ('viewer')",
+        "INSERT INTO roles (name) VALUES (' ')",
+        "INSERT INTO roles (name) VALUES ('HR')",
+        "INSERT INTO roles (name) VALUES (' hr ')",
+        "INSERT INTO user_roles SELECT user_id, role_id FROM user_roles LIMIT 1",
+        "INSERT INTO user_roles (user_id, role_id) SELECT 999, id FROM roles LIMIT 1",
+        "INSERT INTO user_roles (user_id, role_id) VALUES (1, 999)",
         "DELETE FROM classifications WHERE id = 1",
         "INSERT INTO compliance_records (person_id, requirement, status) "
         "VALUES (1, 'Security training', 'pending')",

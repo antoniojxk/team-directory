@@ -4,19 +4,23 @@ const database = process.env.TEST_DATABASE_URL
 if (!database)
   throw new Error('Set TEST_DATABASE_URL to a dedicated PostgreSQL database ending in _test')
 
+const apiPort = Number(process.env.E2E_API_PORT ?? 8001)
+const webPort = Number(process.env.E2E_WEB_PORT ?? 5174)
+const apiOrigin = `http://127.0.0.1:${apiPort}`
+const webOrigin = `http://127.0.0.1:${webPort}`
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
   workers: 1,
   retries: 0,
   reporter: 'list',
-  use: { baseURL: 'http://127.0.0.1:5174', trace: 'off', screenshot: 'only-on-failure' },
+  use: { baseURL: webOrigin, trace: 'off', screenshot: 'only-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: [
     {
-      command:
-        '../backend/.venv/bin/python ../scripts/prepare_e2e.py && ../backend/.venv/bin/uvicorn app.main:app --app-dir ../backend --host 127.0.0.1 --port 8001',
-      url: 'http://127.0.0.1:8001/health',
+      command: `../backend/.venv/bin/python ../scripts/prepare_e2e.py && ../backend/.venv/bin/uvicorn app.main:app --app-dir ../backend --host 127.0.0.1 --port ${apiPort}`,
+      url: `${apiOrigin}/health`,
       reuseExistingServer: false,
       env: {
         DATABASE_URL: database,
@@ -28,10 +32,10 @@ export default defineConfig({
       },
     },
     {
-      command: 'npm run dev -- --port 5174 --strictPort',
-      url: 'http://127.0.0.1:5174',
+      command: `npm run dev -- --port ${webPort} --strictPort`,
+      url: webOrigin,
       reuseExistingServer: false,
-      env: { API_PROXY_TARGET: 'http://127.0.0.1:8001' },
+      env: { API_PROXY_TARGET: apiOrigin },
     },
   ],
 })

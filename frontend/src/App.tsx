@@ -142,7 +142,11 @@ function Login() {
 function Layout() {
   const { user, logout } = useAuth()
   if (!user) return <Navigate to="/login" replace />
-  const hr = user.role === 'hr'
+  const hr = user.roles.includes('hr')
+  const roleLabels =
+    user.roles
+      .map((role) => (role === 'hr' ? 'HR' : role === 'viewer' ? 'Viewer' : role))
+      .join(' + ') || 'No roles'
   return (
     <div className="app-shell">
       <a href="#main" className="skip-link">
@@ -186,7 +190,7 @@ function Layout() {
           <div className="session">
             <span className="session-avatar">{hr ? 'HR' : 'V'}</span>
             <div>
-              <strong>{hr ? 'HR' : 'Viewer'} account</strong>
+              <strong>{user.username} account</strong>
               <small>Demo workspace</small>
             </div>
             <button className="icon-button" onClick={logout} aria-label="Sign out">
@@ -201,7 +205,12 @@ function Layout() {
             Workspace <ChevronRight size={14} /> <strong>Team Directory</strong>
           </span>
           <span className={`role-pill ${hr ? 'hr' : ''}`}>
-            <ShieldCheck size={14} /> {hr ? 'HR · full access' : 'Viewer · read only'}
+            <ShieldCheck size={14} /> {roleLabels} ·{' '}
+            {hr
+              ? 'full access'
+              : user.permissions.includes('directory:read')
+                ? 'read only'
+                : 'no access'}
           </span>
         </header>
         <main id="main" className="content">
@@ -217,7 +226,7 @@ function Layout() {
 
 function HrOnly({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
-  return user?.role === 'hr' ? (
+  return user?.roles.includes('hr') ? (
     children
   ) : (
     <ErrorBox message="You do not have permission to view this page. Switch to the HR account to continue." />

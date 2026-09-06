@@ -47,6 +47,7 @@ test('HR explicitly reveals, updates confidential notes, and sees the audit reco
   page,
 }) => {
   await login(page, 'hr')
+  await expect(page.getByText('HR + Viewer · full access')).toBeVisible()
   await page.screenshot({ path: '../docs/directory-desktop.png', fullPage: true })
   const requests: string[] = []
   page.on('request', (request) => {
@@ -95,6 +96,7 @@ test('HR forms create a profile, employment and training, and report duplicate v
   page,
 }) => {
   await login(page, 'hr')
+  await expect(page.getByText('HR + Viewer · full access')).toBeVisible()
   await page.getByRole('button', { name: 'Add person' }).click()
   await page.getByLabel('Full name').fill('Taylor Demo')
   await page.getByLabel('Work email').fill('taylor.demo@example.com')

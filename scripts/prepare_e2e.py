@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 
 root = Path(__file__).resolve().parents[1]
@@ -18,6 +18,8 @@ if parsed.get_backend_name() != "postgresql" or not (parsed.database or "").ends
 
 from alembic import command
 from alembic.config import Config
+from app.database import SessionLocal
+from app.models import Role, User
 from app.seed import seed
 
 command.upgrade(Config(str(root / "backend" / "alembic.ini")), "head")
@@ -26,8 +28,14 @@ with engine.begin() as connection:
     connection.execute(
         text(
             "TRUNCATE audit_events, compliance_records, employments, people, "
-            "classifications, users RESTART IDENTITY CASCADE"
+            "classifications, users, roles RESTART IDENTITY CASCADE"
         )
     )
 engine.dispose()
 seed()
+
+# Exercise combined roles through real browser login and permission checks.
+with SessionLocal.begin() as db:
+    hr = db.scalar(select(User).where(User.username == "hr"))
+    assert hr is not None
+    hr.roles = list(db.scalars(select(Role)))

@@ -143,7 +143,7 @@ class ConfidentialOut(BaseModel):
 class UserOut(BaseModel):
     id: int
     username: str
-    role: str
+    roles: list[str]
     permissions: list[str]
 
 

@@ -40,6 +40,8 @@ erDiagram
     CLASSIFICATION ||--o{ EMPLOYMENT : categorizes
     PERSON ||--o{ COMPLIANCE_RECORD : completes
     USER ||--o{ AUDIT_EVENT : requests
+    USER ||--o{ USER_ROLE : holds
+    ROLE ||--o{ USER_ROLE : assigned
     PERSON o|--o{ AUDIT_EVENT : targets
     PERSON {
         int id PK
@@ -74,7 +76,14 @@ erDiagram
         int id PK
         string username UK
         string password_hash
-        string role
+    }
+    ROLE {
+        int id PK
+        string name UK
+    }
+    USER_ROLE {
+        int user_id PK,FK
+        int role_id PK,FK
     }
     AUDIT_EVENT {
         int id PK
@@ -158,6 +167,19 @@ backend/.venv/bin/alembic -c backend/alembic.ini revision --autogenerate -m 'Des
 
 Review generated migrations before applying them. The initial migration contains concrete table definitions and a reverse migration. Never run downgrade against production without a backup and a data-loss review.
 
+Revision `b719d2e4a630` creates `roles` and `user_roles`, inserts the built-in Viewer/HR roles, copies each existing `users.role` assignment into the join table, and then removes the old column. User IDs, passwords and audit references are preserved. Both a fresh database and an existing database use `upgrade head`; do not edit or rerun the initial migration manually.
+
+This changes both the database schema and `/api/auth/me` (`role` becomes `roles`). Stop the old application before applying this migration, then start the updated backend and frontend together. For an existing local Compose installation:
+
+```bash
+docker compose build app
+docker compose stop app
+docker compose run --rm app alembic upgrade head
+docker compose up -d app --wait
+```
+
+The downgrade restores the old column only when every user has exactly one `viewer` or `hr` role and there are no custom roles. It refuses users with zero/multiple roles or custom role definitions rather than dropping assignments silently. Resolve those cases deliberately before a rollback; never use a downgrade to choose users' privileges automatically.
+
 ## Permissions and demo accounts
 
 | Permission / scope | Viewer | HR |
@@ -168,7 +190,23 @@ Review generated migrations before applying them. The initial migration contains
 | `confidential:write`: update notes and salary | No | Yes |
 | `audit:read`: view access history | No | Yes |
 
-Roles are assigned to users in PostgreSQL. Every request reloads the user and derives permissions from the stored role. A supplied role or scope in a token cannot promote a Viewer. Swagger's **Authorize** uses the same demo credentials; its requested scopes do not grant additional permissions.
+Roles are separate records in PostgreSQL, connected to users through `user_roles`. A user can have zero, one, or multiple roles, including every currently defined role. The join table's composite primary key prevents duplicate assignments; foreign keys prevent orphaned assignments. Deleting a user or role removes its assignments, while audit references still prevent deletion of an audited user.
+
+Every request loads the user's current assignments and combines their permissions without duplicates. HR already includes all Viewer permissions, so holding both currently grants the same access as HR alone. Users with no roles have no application permissions; unknown role names grant nothing. New role names require an explicit mapping in `backend/app/security.py` to grant permissions. Role assignment is database-managed; there is no role-management API or UI.
+
+For example, assign all currently defined roles to an existing user using parameterized SQL (`:username` is a bound parameter supplied by your SQL client):
+
+```sql
+INSERT INTO user_roles (user_id, role_id)
+SELECT users.id, roles.id
+FROM users CROSS JOIN roles
+WHERE users.username = :username
+ON CONFLICT (user_id, role_id) DO NOTHING;
+```
+
+This is an explicit set of assignments, not a wildcard: roles created later are not automatically granted. The demo seed creates `viewer` with Viewer and `hr` with HR, and rerunning it preserves existing passwords and assignments, including deliberately removed roles.
+
+`GET /api/auth/me` now returns `roles: ["hr", "viewer"]` for a user holding both roles, alongside the effective `permissions` array. Role names are sorted and permissions follow the declared scope order. React accepts the array and displays all assigned roles. Assignment changes take effect on the next API request even with an existing token; the UI's account summary refreshes at sign-in. A supplied role, roles array, or scope in a token cannot promote a Viewer. Swagger's **Authorize** uses the same demo credentials; its requested scopes do not grant additional permissions.
 
 Tokens expire after 30 minutes by default. React keeps them only in memory, clears them on sign-out/expiry/401, and clears confidential data when a profile unmounts or the session ends. Reloading the page requires signing in again. There are no refresh tokens or persistent browser credentials.
 
@@ -244,9 +282,11 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Alembic creates the test schema; no SQLite substitute or `create_all` is used. Backend tests cover authentication/expiry, CRUD, combined filtering/pagination, direct SQL constraints, date rules, missing/malformed records, every Viewer mutation boundary, response leaks, successful/denied auditing, protected history and audit-write failure. Browser tests use the real API/PostgreSQL for login, search, role differences and HR forms. Only the browser's server-failure/session-expiry presentations use intercepted responses; real token expiry is covered in backend tests.
+Alembic creates the test schema; no SQLite substitute or `create_all` is used. Backend tests cover authentication/expiry, CRUD, combined filtering/pagination, direct SQL constraints, date rules, missing/malformed records, every Viewer mutation boundary, response leaks, successful/denied auditing, protected history and audit-write failure. Role regressions cover combined permissions, duplicate/orphan assignments, zero/unknown roles, revocation with an existing token, seed preservation, legacy data migration, schema drift and safe downgrade refusal. Browser tests use the real API/PostgreSQL for login, search, role differences and HR forms; their HR fixture holds both roles to exercise the combined-role UI and authorization. Only the browser's server-failure/session-expiry presentations use intercepted responses; real token expiry is covered in backend tests.
 
 The browser suite starts its own backend on 8001 and Vite on 5174, resets/seeds the test database, and closes both servers afterward. It uses fixed **test-only** passwords, never the development `.env` credentials. Traces are disabled to avoid storing bearer tokens. Failure screenshots contain synthetic data only.
+
+If those ports are occupied, set `E2E_API_PORT` and `E2E_WEB_PORT` to free ports, for example `E2E_API_PORT=18001 E2E_WEB_PORT=15174 npm run test:e2e` from `frontend/`.
 
 Mypy runs in strict mode across the backend application, tests, migrations, and Python scripts. The configuration includes the Pydantic plugin and requires parameter and return annotations for every function. Run the command above from the repository root, or `uv run mypy` from `backend/`. Type checking does not require a running database.
 

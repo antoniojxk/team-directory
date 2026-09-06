@@ -123,6 +123,8 @@ Stop if either job fails. Review its execution logs (never print environment var
 
 On later deployments, rerun migration with the new image, skip seed unless needed, then roll out the app. Prefer additive/backward-compatible schema changes: an old revision may serve traffic while the new revision starts. Back up before destructive changes; rolling a service back does not roll its database schema back. [Cloud Run job flags](https://docs.cloud.google.com/sdk/gcloud/reference/run/jobs/deploy).
 
+**Role migration exception (`b719d2e4a630`):** this revision replaces `users.role` with `roles` and `user_roles`, and the updated API replaces the singular `role` field with a `roles` array. It is incompatible with the old application. For an existing deployment, use a maintenance window to stop application traffic before the migration job, apply it with the new image, deploy the matching backend/frontend, and restore traffic only after verification. Do not leave old revisions serving against the new schema. Existing users and assignments are preserved. Downgrading requires exactly one built-in role per user and no custom roles; the migration rejects other states to prevent silent data loss. See the README's migration section for local upgrade commands.
+
 ## 6. Deploy one service
 
 ```bash

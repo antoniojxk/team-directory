@@ -24,7 +24,14 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.database import SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import Classification, ComplianceRecord, Employment, Person, User  # noqa: E402
+from app.models import (  # noqa: E402
+    Classification,
+    ComplianceRecord,
+    Employment,
+    Person,
+    Role,
+    User,
+)
 from app.security import create_token, password_hash  # noqa: E402
 
 
@@ -47,14 +54,16 @@ def records(migrated_database: None, hashes: tuple[str, str]) -> None:
         connection.execute(
             text(
                 "TRUNCATE audit_events, compliance_records, employments, people, "
-                "classifications, users RESTART IDENTITY CASCADE"
+                "classifications, users, roles RESTART IDENTITY CASCADE"
             )
         )
     with SessionLocal.begin() as db:
+        viewer = Role(name="viewer")
+        hr = Role(name="hr")
         db.add_all(
             [
-                User(username="viewer", role="viewer", password_hash=hashes[0]),
-                User(username="hr", role="hr", password_hash=hashes[1]),
+                User(username="viewer", roles=[viewer], password_hash=hashes[0]),
+                User(username="hr", roles=[hr], password_hash=hashes[1]),
             ]
         )
         db.add_all([Classification(name="employee"), Classification(name="contractor")])

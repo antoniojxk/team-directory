@@ -50,7 +50,7 @@ export function Directory() {
           </h1>
           <p className="muted">Find a familiar face. Get to know someone new.</p>
         </div>
-        {user?.role === 'hr' && (
+        {user?.roles.includes('hr') && (
           <button className="button primary" onClick={() => setAdding(true)}>
             <Plus size={17} /> Add person
           </button>
@@ -72,7 +72,7 @@ export function Directory() {
             People <span className="count">{result.data?.total ?? '—'}</span>
           </h2>
           <span className="muted small">
-            {user?.role === 'hr' ? 'Manage with care' : 'Public profiles, at a glance'}
+            {user?.roles.includes('hr') ? 'Manage with care' : 'Public profiles, at a glance'}
           </span>
         </div>
         <form
