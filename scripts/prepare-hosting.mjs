@@ -45,6 +45,11 @@ const config = {
         headers: [{ key: 'Cache-Control', value: 'public,max-age=31536000,immutable' }],
       },
     ],
+    redirects: ['/docs', '/redoc', '/openapi.json'].map((source) => ({
+      source,
+      destination: `${api.origin}${source}`,
+      type: 302,
+    })),
     rewrites: [
       ...['/', '/login', '/people', '/people/*', '/audit', '/classifications'].map((source) => ({
         source,
