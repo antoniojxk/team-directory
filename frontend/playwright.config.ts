@@ -29,13 +29,14 @@ export default defineConfig({
         DEMO_VIEWER_PASSWORD: 'viewer-browser-password',
         DEMO_HR_PASSWORD: 'hr-browser-password',
         ACCESS_TOKEN_MINUTES: '30',
+        FRONTEND_ORIGINS: JSON.stringify([webOrigin]),
       },
     },
     {
       command: `npm run dev -- --port ${webPort} --strictPort`,
       url: webOrigin,
       reuseExistingServer: false,
-      env: { API_PROXY_TARGET: apiOrigin },
+      env: { VITE_API_BASE_URL: apiOrigin, API_PROXY_TARGET: apiOrigin },
     },
   ],
 })

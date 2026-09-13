@@ -1,6 +1,6 @@
 # Cloud Run + Neon deployment
 
-These are prepared commands, not actions already performed. Execute them only after explicitly deciding to create/use cloud resources and publish this synthetic demo. No cloud account, project, billing configuration or Neon credential is needed to complete the local build.
+This is the manual provisioning runbook. The current production architecture and automated release flow are documented in [FIREBASE.md](FIREBASE.md). Replace the example variables below when provisioning another installation; local development does not require cloud credentials.
 
 ## 1. Choose project, region and database
 
@@ -166,4 +166,4 @@ Minimum 1 usually improves application startup latency but incurs idle-instance 
 - Keep database/HTTP debug logging off. Application error responses and handlers omit sensitive inputs and SQL error text; do not add request-body or token logging during troubleshooting.
 - Retain backups, manage Neon restore capability, and choose audit retention before using anything beyond synthetic data.
 - To retire the demo, deliberately delete the Cloud Run service and its jobs, then review image, secret and Neon resources separately. Stopping a service does not delete or stop every chargeable resource.
-- No resource creation, build submission, deployment, Git push, or billing change was performed as part of implementation.
+- Keep an operational record of the resources actually provisioned; these example commands alone do not establish deployment status.

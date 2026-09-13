@@ -12,3 +12,7 @@ frontend/playwright-report
 docs
 .local
 *.log
+
+# Local deployment notes and temporary authentication files
+.private/
+gha-creds-*.json

@@ -14,3 +14,12 @@ frontend/playwright-report/
 .DS_Store
 *.log
 .local/
+
+# Local deployment notes and temporary authentication files
+/.private/
+gha-creds-*.json
+
+# Generated Firebase configuration and local CLI state
+/firebase.json
+/.firebase/
+/firepit-log.txt

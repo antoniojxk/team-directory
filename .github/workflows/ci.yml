@@ -51,3 +51,62 @@ jobs:
       - run: npm run test:e2e
         working-directory: frontend
       - run: docker build -t team-directory:ci .
+
+  deploy-production:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: team-directory-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      FIREBASE_HOSTING_SITE_ID: ${{ vars.FIREBASE_HOSTING_SITE_ID }}
+      VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+      GCP_BACKEND_PROJECT_ID: ${{ vars.GCP_BACKEND_PROJECT_ID }}
+      CLOUD_RUN_REGION: ${{ vars.CLOUD_RUN_REGION }}
+      BACKEND_IMAGE: ${{ vars.CLOUD_RUN_REGION }}-docker.pkg.dev/${{ vars.GCP_BACKEND_PROJECT_ID }}/team-directory/app:${{ github.sha }}
+      FIREBASE_CLI_VERSION: ${{ vars.FIREBASE_CLI_VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Validate deployment settings
+        shell: bash
+        run: |
+          for name in FIREBASE_PROJECT_ID FIREBASE_HOSTING_SITE_ID VITE_API_BASE_URL FIREBASE_CLI_VERSION GCP_BACKEND_PROJECT_ID CLOUD_RUN_REGION; do
+            test -n "${!name}" || { echo "Missing deployment variable: $name"; exit 1; }
+          done
+          node scripts/prepare-hosting.mjs
+      - run: npm ci && npm run build
+        working-directory: frontend
+      - run: npm install --global "firebase-tools@$FIREBASE_CLI_VERSION"
+      - name: Reject superseded production commits
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: test "$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)" = "$GITHUB_SHA"
+      - uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: Build and push backend image
+        run: |
+          gcloud auth configure-docker "$CLOUD_RUN_REGION-docker.pkg.dev" --quiet
+          docker build -t "$BACKEND_IMAGE" .
+          docker push "$BACKEND_IMAGE"
+      - name: Migrate and deploy backend
+        run: bash scripts/deploy-backend.sh
+      - name: Deploy production
+        if: github.event_name == 'push'
+        run: firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
