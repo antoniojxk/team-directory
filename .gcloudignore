@@ -12,3 +12,9 @@ frontend/test-results
 frontend/playwright-report
 docs
 *.log
+
+.private/
+gha-creds-*.json
+.firebase/
+
+**/.mypy_cache

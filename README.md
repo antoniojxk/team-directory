@@ -330,3 +330,7 @@ Deployment preparation does **not** create cloud resources, publish the app, or 
 - **Confidential read returns 503:** no values were returned because the database/audit commit failed. Restore database availability and retry.
 
 Keep `.env`, virtual environments, build outputs, and test artifacts out of Git. A normal local workflow is `git switch -c feature/short-description`, make a focused change, run the checks above, inspect `git diff`, then commit the intended files. Commit `backend/uv.lock`, `frontend/package-lock.json`, and reviewed migrations. Add a remote/push only when you choose to publish the repository.
+
+## Production hosting
+
+See [the production deployment guide](docs/FIREBASE.md) for Firebase Hosting in `nuvorima`, Cloud Run in `invoiceparse-java`, Neon PostgreSQL, and the production-only GitHub release workflow.

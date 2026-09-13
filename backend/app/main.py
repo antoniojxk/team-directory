@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -100,3 +101,14 @@ def frontend(path: str) -> FileResponse:
     if not index.is_file():
         raise HTTPException(404, "Frontend build not found. Start Vite or build the frontend.")
     return FileResponse(index, headers={"Cache-Control": "no-cache"})
+
+
+# Keep CORS outside exception handling so even error responses reach the browser.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().frontend_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    max_age=3600,
+)

@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { User } from './types'
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -21,7 +23,7 @@ async function request<T>(
     headers.set('Content-Type', 'application/json')
   let response: Response
   try {
-    response = await fetch(`/api${path}`, { ...options, headers, cache: 'no-store' })
+    response = await fetch(`${API_BASE_URL}/api${path}`, { ...options, headers, cache: 'no-store' })
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error
     throw new ApiError(0, 'Unable to reach the server. Check your connection and try again.')

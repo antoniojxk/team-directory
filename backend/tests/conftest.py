@@ -16,6 +16,7 @@ if not test_url or not (make_url(test_url).database or "").endswith("_test"):
     raise RuntimeError("Set TEST_DATABASE_URL to a PostgreSQL database whose name ends in _test")
 if make_url(test_url).get_backend_name() != "postgresql":
     raise RuntimeError("These integration tests require real PostgreSQL")
+os.environ["FRONTEND_ORIGINS"] = '["https://team-directory.web.app"]'
 os.environ["DATABASE_URL"] = test_url
 os.environ.pop("DIRECT_DATABASE_URL", None)
 os.environ["JWT_SECRET"] = "integration-tests-only-secret-with-more-than-32-characters"
